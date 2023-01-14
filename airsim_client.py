@@ -84,7 +84,7 @@ class AirsimClient(fl.client.NumPyClient):
 
         # Stops training when the model reaches the maximum number of episodes
         callback_max_episodes = StopTrainingOnMaxEpisodes(max_episodes=1e2, verbose=1)
-        callback_list.append(callback_max_episodes)
+        #callback_list.append(callback_max_episodes)
 
         self.callback = CallbackList(callback_list)
 
@@ -105,7 +105,7 @@ class AirsimClient(fl.client.NumPyClient):
     def fit(self, parameters, config):
         self.n_round += 1
         self.set_parameters(parameters)
-        self.model.learn(total_timesteps=1e7, tb_log_name=self.time.get_time() + f"/SAC_airsim_car_round_{self.n_round}", reset_num_timesteps=False, callback = self.callback)
+        self.model.learn(total_timesteps=5e2, tb_log_name=self.time.get_time() + f"/SAC_airsim_car_round_{self.n_round}", reset_num_timesteps=False, callback = self.callback)
         return self.get_parameters(config={}), self.model.num_timesteps, {}
 
     def evaluate(self, parameters, config):
