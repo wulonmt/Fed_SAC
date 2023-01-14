@@ -14,12 +14,12 @@ class Ptime():
         
     def get_time(self):
         time_list = self.saved_time.split(' ')
-        if '' in Ttime:
+        if '' in time_list:
             time_list.remove('')
         if(int(time_list[2]) < 10):
-            time_list[2] = "0" + Ttime[2]
+            time_list[2] = "0" + time_list[2]
         mask = [4, 1, 2, 0, 3]
         self.ptime = ""
         for i in mask:
-            self.ptime += Ttime[i] + "_"
+            self.ptime += time_list[i] + "_"
         return self.ptime

@@ -6,11 +6,11 @@ from stable_baselines3 import SAC
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.vec_env import DummyVecEnv, VecTransposeImage
 from stable_baselines3.common.evaluation import evaluate_policy
-from stable_baselines3.common.callbacks import EvalCallback
-from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
+from stable_baselines3.common.callbacks import EvalCallback, CheckpointCallback, CallbackList, StopTrainingOnMaxEpisodes
 
 import utils.setup_path
-from utils.PTime import PTime
+from utils.Ptime import Ptime
+from utils.EpisodeCheckpointCallback import EpisodeCheckpointCallback
 
 import flwr as fl
 import numpy as np
@@ -44,11 +44,6 @@ class AirsimClient(fl.client.NumPyClient):
         # Wrap env as VecTransposeImage to allow SB to handle frame observations
         self.env = VecTransposeImage(self.env)
 
-        #Custum Input
-        policy_kwargs = dict(
-            features_extractor_class=CustomCombinedExtractor,
-        )
-
         # Initialize RL algorithm type and parameters
         self.model = SAC( #action should be continue
             "CnnPolicy",
@@ -79,7 +74,7 @@ class AirsimClient(fl.client.NumPyClient):
         # Create an evaluation callback with the same env, called every 10000 iterations
         callback_list = []
         eval_callback = EvalCallback(
-            env,
+            self.env,
             callback_on_new_best=None,
             n_eval_episodes=5,
             best_model_save_path=".",
@@ -106,7 +101,7 @@ class AirsimClient(fl.client.NumPyClient):
 
         self.callback = CallbackList(callback_list)
 
-        self.time = PTime
+        self.time = Ptime()
         self.time.set_time_now()
         print("Start time: ", self.time.get_time())
         self.n_round = int(0)
@@ -134,7 +129,7 @@ class AirsimClient(fl.client.NumPyClient):
 def main():        
     # Start Flower client
     fl.client.start_numpy_client(
-        server_address="192.168.1.85:8080",
+        server_address="127.0.0.1:8080",
         client=AirsimClient(),
     )
 if __name__ == "__main__":

@@ -3,7 +3,7 @@ from typing import List, Tuple
 import flwr as fl
 from flwr.common import Metrics
 from stable_baselines3 import SAC
-from airsim_client import AirsimClient, CustomCombinedExtractor
+from airsim_client import AirsimClient
 from flwr.common.typing import Parameters
 from flwr.common.parameter import ndarrays_to_parameters
 
@@ -20,7 +20,7 @@ def main():
                                         )
     # Start Flower server
     fl.server.start_server(
-        server_address="192.168.1.85:8080",
+        server_address="127.0.0.1:8080",
         config=fl.server.ServerConfig(num_rounds=10),
         strategy=strategy,
     )
