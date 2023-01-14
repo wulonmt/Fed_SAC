@@ -1,0 +1,8 @@
+/tb_logs
+/best_model.zip
+/evaluations.npz
+*.pyc
+Environment.sh
+__pycache__/
+*.py[cod]
+*$py.class
