@@ -57,19 +57,6 @@ class AirsimClient(fl.client.NumPyClient):
             device="auto",
             tensorboard_log="./tb_logs/",
         )
-
-        # Create an evaluation callback with the same env, called every 10000 iterations
-        callbacks = []
-        eval_callback = EvalCallback(
-            self.env,
-            callback_on_new_best=None,
-            n_eval_episodes=5,
-            best_model_save_path=".",
-            log_path=".",
-            eval_freq=5000,
-            verbose = 1
-        )
-        callbacks.append(eval_callback)
         
         # Create an evaluation callback with the same env, called every 10000 iterations
         callback_list = []
@@ -96,14 +83,14 @@ class AirsimClient(fl.client.NumPyClient):
         #callback_list.append(ep_checkpoint_callback)
 
         # Stops training when the model reaches the maximum number of episodes
-        callback_max_episodes = StopTrainingOnMaxEpisodes(max_episodes=1e3, verbose=1)
+        callback_max_episodes = StopTrainingOnMaxEpisodes(max_episodes=1e2, verbose=1)
         callback_list.append(callback_max_episodes)
 
         self.callback = CallbackList(callback_list)
 
         self.time = Ptime()
         self.time.set_time_now()
-        print("Start time: ", self.time.get_time())
+        print("Starting time: ", self.time.get_time())
         self.n_round = int(0)
         
     def get_parameters(self, config):
@@ -118,8 +105,8 @@ class AirsimClient(fl.client.NumPyClient):
     def fit(self, parameters, config):
         self.n_round += 1
         self.set_parameters(parameters)
-        self.model.learn(total_timesteps=2e4, tb_log_name=self.time.get_time + f"/SAC_airsim_car_round_{self.n_round}", reset_num_timesteps=False, callback = self.callback)
-        return self.get_parameters(config={}), self.model.buffer_size, {}
+        self.model.learn(total_timesteps=1e7, tb_log_name=self.time.get_time + f"/SAC_airsim_car_round_{self.n_round}", reset_num_timesteps=False, callback = self.callback)
+        return self.get_parameters(config={}), self.model.num_timesteps, {}
 
     def evaluate(self, parameters, config):
         self.set_parameters(parameters)
