@@ -52,7 +52,7 @@ class AirsimClient(fl.client.NumPyClient):
             verbose=1,
             batch_size=64,
             train_freq=1,
-            learning_starts=1000, #testing origin 1000
+            learning_starts=50, #testing origin 1000
             buffer_size=200000,
             device="auto",
             tensorboard_log="./tb_logs/",
@@ -105,13 +105,13 @@ class AirsimClient(fl.client.NumPyClient):
     def fit(self, parameters, config):
         self.n_round += 1
         self.set_parameters(parameters)
-        self.model.learn(total_timesteps=5e2, tb_log_name=self.time.get_time() + f"/SAC_airsim_car_round_{self.n_round}", reset_num_timesteps=False, callback = self.callback)
+        self.model.learn(total_timesteps=2e3, tb_log_name=self.time.get_time() + f"/SAC_airsim_car_round_{self.n_round}", reset_num_timesteps=False, callback = self.callback)
         return self.get_parameters(config={}), self.model.num_timesteps, {}
 
     def evaluate(self, parameters, config):
         self.set_parameters(parameters)
         reward_mean, reward_std = evaluate_policy(self.model, self.env)
-        return -reward_mean, self.model.buffer_size, {"reward mean": reward_mean, "reward std": reward_std} 
+        return -reward_mean, self.model.num_timesteps, {"reward mean": reward_mean, "reward std": reward_std} 
 
 def main():        
     # Start Flower client
