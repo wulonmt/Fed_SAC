@@ -9,6 +9,7 @@ from flwr.common.parameter import ndarrays_to_parameters
 from flwr.common.typing import GetParametersIns
 from flwr.server.utils.tensorboard import tensorboard
 from utils.CustomFedAdam import CustomFedAdam
+from flwr.server.strategy import FedAvg, FedAdam
 
 
 def main():
@@ -17,7 +18,7 @@ def main():
     initial_parameters = ndarrays_to_parameters(initial_parameters)
                                         
     # Decorated strategy
-    strategy = tensorboard("Server_log")(fl.server.strategy.FedAdam)(initial_parameters = initial_parameters,
+    strategy = tensorboard("Server_log")(CustomFedAdam)(initial_parameters = initial_parameters,
                                                 min_fit_clients=2,
                                                 min_evaluate_clients=2,
                                                 min_available_clients=2,)

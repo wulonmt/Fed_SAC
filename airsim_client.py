@@ -22,6 +22,7 @@ import argparse
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-t", "--track", help="which track will be used, 0~2", type=int)
+parser.add_argument("-l", "--log_name", help="modified log name", type=str, nargs='?')
 args = parser.parse_args()
 
 class AirsimClient(fl.client.NumPyClient):
@@ -105,7 +106,7 @@ class AirsimClient(fl.client.NumPyClient):
     def fit(self, parameters, config):
         self.n_round += 1
         self.set_parameters(parameters)
-        self.model.learn(total_timesteps=5e2, tb_log_name=self.time.get_time() + f"/SAC_airsim_car_round_{self.n_round}", reset_num_timesteps=False, callback = self.callback)
+        self.model.learn(total_timesteps=5e2, tb_log_name=self.time.get_time() + f"{args.log_name}/SAC_airsim_car_round_{self.n_round}", reset_num_timesteps=False, callback = self.callback)
         return self.get_parameters(config={}), self.model.num_timesteps, {}
 
     def evaluate(self, parameters, config):
