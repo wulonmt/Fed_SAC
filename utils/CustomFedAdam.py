@@ -1,10 +1,12 @@
 from flwr.server.strategy import FedAdam, FedOpt
 from typing import Callable, Dict, List, Optional, Tuple, Union
+from flwr.server.client_manager import ClientManager
 
 import numpy as np
 
 from flwr.common import (
     FitRes,
+    FitIns,
     MetricsAggregationFn,
     NDArrays,
     Parameters,
@@ -122,4 +124,26 @@ class CustomFedAdam(FedOpt):
         return ndarrays_to_parameters(self.current_weights), metrics_aggregated
         
         #return fedavg_weights_aggregate, metrics_aggregated
+        
+    def configure_fit(
+        self, server_round: int, parameters: Parameters, client_manager: ClientManager
+    ) -> List[Tuple[ClientProxy, FitIns]]:
+        """Configure the next round of training."""
+        config = {}
+        if self.on_fit_config_fn is not None:
+            # Custom fit config function provided
+            config = self.on_fit_config_fn(server_round)
+        config["learning_rate"] = self.eta_l
+        fit_ins = FitIns(parameters, config)
+
+        # Sample clients
+        sample_size, min_num_clients = self.num_fit_clients(
+            client_manager.num_available()
+        )
+        clients = client_manager.sample(
+            num_clients=sample_size, min_num_clients=min_num_clients
+        )
+
+        # Return client/config pairs
+        return [(client, fit_ins) for client in clients]
     

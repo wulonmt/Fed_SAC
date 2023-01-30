@@ -11,7 +11,6 @@ from flwr.server.utils.tensorboard import tensorboard
 from utils.CustomFedAdam import CustomFedAdam
 from flwr.server.strategy import FedAvg, FedAdam
 
-
 def main():
     init_model = AirsimClient()
     initial_parameters = init_model.get_parameters(config={})
@@ -21,8 +20,11 @@ def main():
     strategy = tensorboard("Server_log")(CustomFedAdam)(initial_parameters = initial_parameters,
                                                 min_fit_clients=2,
                                                 min_evaluate_clients=2,
-                                                min_available_clients=2,)
-    
+                                                min_available_clients=2,
+                                                eta = 1,
+                                                eta_l = 0.0003)
+
+               
     # Start Flower server
     fl.server.start_server(
         server_address="192.168.1.187:8080",
