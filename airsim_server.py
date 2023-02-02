@@ -21,14 +21,14 @@ def main():
                                                 min_fit_clients=2,
                                                 min_evaluate_clients=2,
                                                 min_available_clients=2,
-                                                eta = 1,
+                                                eta = 0.0005,
                                                 eta_l = 0.0003)
 
                
     # Start Flower server
     fl.server.start_server(
         server_address="192.168.1.187:8080",
-        config=fl.server.ServerConfig(num_rounds=10),
+        config=fl.server.ServerConfig(num_rounds=15),
         strategy=strategy,
     )
     

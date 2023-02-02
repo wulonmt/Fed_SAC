@@ -41,7 +41,7 @@ class CustomFedAdam(FedOpt):
         eta_l: float = 1e-1,
         beta_1: float = 0.9,
         beta_2: float = 0.99,
-        tau: float = 1e-3,
+        tau: float = 1e-8,
     ) -> None:
         super().__init__(
             fraction_fit=fraction_fit,
@@ -96,7 +96,7 @@ class CustomFedAdam(FedOpt):
         if not self.m_t:
             self.m_t = [np.zeros_like(x) for x in delta_t]
         self.m_t = [
-            np.multiply(self.beta_1, x) + (1 - self.beta_1) * y
+            (np.multiply(self.beta_1, x) + (1 - self.beta_1) * y) / (1 - self.beta_1) #add bias modified
             for x, y in zip(self.m_t, delta_t)
         ]
         print("\n_________self.m_t__________")
@@ -106,7 +106,7 @@ class CustomFedAdam(FedOpt):
         if not self.v_t:
             self.v_t = [np.zeros_like(x) for x in delta_t]
         self.v_t = [
-            self.beta_2 * x + (1 - self.beta_2) * np.multiply(y, y)
+            (self.beta_2 * x + (1 - self.beta_2) * np.multiply(y, y)) / (1 - self.beta_2) #add bias modified
             for x, y in zip(self.v_t, delta_t)
         ]
         print("\n_________self.v_t__________")
