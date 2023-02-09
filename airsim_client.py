@@ -19,11 +19,37 @@ import torch as th
 from torch import nn
 
 import argparse
+import json
+from subprocess import Popen
 
 parser = argparse.ArgumentParser()
-parser.add_argument("-t", "--track", help="which track will be used, 0~2", type=int)
+parser.add_argument("-t", "--track", help="which track will be used, 0~2", type=int, default=1)
+parser.add_argument("-i", "--intersection", help="which intersection car is in", type=int, default=1)
 parser.add_argument("-l", "--log_name", help="modified log name", type=str, nargs='?')
 args = parser.parse_args()
+
+with open("settings.json") as f:
+    settings = json.load(f)
+settings["ViewMode"] = "SpringArmChase"
+#settings["ViewMode"] = "NoDisplay"
+Car = settings["Vehicles"]["Car1"]
+if args.track == 1:
+    if args.intersection == 1:
+        Car["X"], Car["Y"], Car["Z"], Car["Yaw"] = (0, 0, 0, 180)
+    elif args.intersection == 2:
+        Car["X"], Car["Y"], Car["Z"], Car["Yaw"] = (-127, 0, 0, 270)
+    elif args.intersection == 3:
+        Car["X"], Car["Y"], Car["Z"], Car["Yaw"] = (-127, -128, 0, 0)
+    elif args.intersection == 4:
+        Car["X"], Car["Y"], Car["Z"], Car["Yaw"] = (0, -128, 0, 90)
+    else:
+        Car["X"], Car["Y"], Car["Z"], Car["Yaw"] = (0, 0, 0, 180)
+settings["Vehicles"]["Car1"] = Car
+with open("settings.json", "w") as f:
+    json.dump(settings, f, indent=4)
+
+print(Popen("./Environment.sh"))
+time.sleep(7) #wait for airsim opening"
 
 class AirsimClient(fl.client.NumPyClient):
     def __init__(self):
@@ -108,7 +134,12 @@ class AirsimClient(fl.client.NumPyClient):
         self.set_parameters(parameters)
         self.model.learning_rate = config["learning_rate"]
         print(f"Training learning rate: {self.model.learning_rate}")
-        self.model.learn(total_timesteps=5e2, tb_log_name=self.time.get_time() + f"{args.log_name}/SAC_airsim_car_round_{self.n_round}", reset_num_timesteps=False, callback = self.callback)
+        self.model.learn(
+            total_timesteps=5e2,
+            tb_log_name=self.time.get_time() + f"inter{args.intersection}" + f"{args.log_name}/SAC_airsim_car_round_{self.n_round}",
+            reset_num_timesteps=False,
+            callback = self.callback
+            )
         return self.get_parameters(config={}), self.model.num_timesteps, {}
 
     def evaluate(self, parameters, config):

@@ -1,4 +1,4 @@
-from flwr.server.strategy import FedAdam, FedOpt
+from flwr.server.strategy import FedAdam, FedOpt, FedAvg
 from typing import Callable, Dict, List, Optional, Tuple, Union
 from flwr.server.client_manager import ClientManager
 
@@ -16,7 +16,7 @@ from flwr.common import (
 )
 from flwr.server.client_proxy import ClientProxy
 
-class CustomFedAdam(FedOpt):
+class CustomFedAdam(FedAvg):
     def __init__(
         self,
         *,
@@ -34,7 +34,7 @@ class CustomFedAdam(FedOpt):
         on_fit_config_fn: Optional[Callable[[int], Dict[str, Scalar]]] = None,
         on_evaluate_config_fn: Optional[Callable[[int], Dict[str, Scalar]]] = None,
         accept_failures: bool = True,
-        initial_parameters: Parameters,
+        initial_parameters: Parameters = None,
         fit_metrics_aggregation_fn: Optional[MetricsAggregationFn] = None,
         evaluate_metrics_aggregation_fn: Optional[MetricsAggregationFn] = None,
         eta: float = 1e-1,
@@ -56,12 +56,12 @@ class CustomFedAdam(FedOpt):
             initial_parameters=initial_parameters,
             fit_metrics_aggregation_fn=fit_metrics_aggregation_fn,
             evaluate_metrics_aggregation_fn=evaluate_metrics_aggregation_fn,
-            eta=eta,
-            eta_l=eta_l,
-            beta_1=beta_1,
-            beta_2=beta_2,
-            tau=tau,
         )
+        self.eta = eta
+        self.eta_l = eta_l
+        self.beta_1 = beta_1
+        self.beta_2 = beta_2
+        self.tau = tau
         self.initial = True
     
     def aggregate_fit(
