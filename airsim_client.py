@@ -132,7 +132,7 @@ class AirsimClient(fl.client.NumPyClient):
     def fit(self, parameters, config):
         self.n_round += 1
         self.set_parameters(parameters)
-        if(config["learning_rate"]):
+        if(config.has_key("learning_rate")):
             self.model.learning_rate = config["learning_rate"]
         print(f"Training learning rate: {self.model.learning_rate}")
         self.model.learn(
