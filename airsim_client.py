@@ -30,8 +30,8 @@ args = parser.parse_args()
 
 with open("settings.json") as f:
     settings = json.load(f)
-settings["ViewMode"] = "SpringArmChase"
-#settings["ViewMode"] = "NoDisplay"
+#settings["ViewMode"] = "SpringArmChase"
+settings["ViewMode"] = "NoDisplay"
 Car = settings["Vehicles"]["Car1"]
 if args.track == 1:
     if args.intersection == 1:
@@ -132,10 +132,11 @@ class AirsimClient(fl.client.NumPyClient):
     def fit(self, parameters, config):
         self.n_round += 1
         self.set_parameters(parameters)
-        self.model.learning_rate = config["learning_rate"]
+        if(config["learning_rate"]):
+            self.model.learning_rate = config["learning_rate"]
         print(f"Training learning rate: {self.model.learning_rate}")
         self.model.learn(
-            total_timesteps=5e2,
+            total_timesteps=1e3,
             tb_log_name=self.time.get_time() + f"inter{args.intersection}" + f"{args.log_name}/SAC_airsim_car_round_{self.n_round}",
             reset_num_timesteps=False,
             callback = self.callback

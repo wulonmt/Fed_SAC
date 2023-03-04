@@ -1,7 +1,7 @@
 {
     "SettingsVersion": 1.2,
     "SimMode": "Car",
-    "ViewMode": "SpringArmChase",
+    "ViewMode": "NoDisplay",
     "EngineSound": false,
     "Vehicles": {
         "Car1": {
