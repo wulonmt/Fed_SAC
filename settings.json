@@ -1,15 +1,15 @@
 {
     "SettingsVersion": 1.2,
     "SimMode": "Car",
-    "ViewMode": "SpringArmChase",
+    "ViewMode": "NoDisplay",
     "EngineSound": false,
     "Vehicles": {
         "Car1": {
             "VehicleType": "PhysXCar",
-            "X": -127,
-            "Y": -128,
+            "X": 0,
+            "Y": 0,
             "Z": 0,
-            "Yaw": 0
+            "Yaw": 180
         }
     },
     "CameraDefaults": {

@@ -7,6 +7,7 @@ from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.vec_env import DummyVecEnv, VecTransposeImage
 from stable_baselines3.common.evaluation import evaluate_policy
 from stable_baselines3.common.callbacks import EvalCallback, CheckpointCallback, CallbackList, StopTrainingOnMaxEpisodes
+from stable_baselines3.common.vec_env import VecFrameStack
 
 import utils.setup_path
 from utils.Ptime import Ptime
@@ -69,7 +70,7 @@ class AirsimClient(fl.client.NumPyClient):
             ]
         )
         # Frame-stacking with 4 frames
-        self.env = VecFrameStack(env, n_stack=4)
+        self.env = VecFrameStack(self.env, n_stack=4)
 
         # Wrap env as VecTransposeImage to allow SB to handle frame observations
         self.env = VecTransposeImage(self.env)
