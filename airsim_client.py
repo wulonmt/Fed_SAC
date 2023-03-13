@@ -60,6 +60,7 @@ class AirsimClient(fl.client.NumPyClient):
                         image_shape=(84, 84, 1),
                     )
         self.env.env.setkwargs(track = args.track)
+        self.env.env.setInitialPos(Car["X"], Car["Y"], Car["Z"]) #setting initial pose
         self.env = DummyVecEnv(
             [
                 lambda: Monitor(
@@ -67,6 +68,8 @@ class AirsimClient(fl.client.NumPyClient):
                 )
             ]
         )
+        # Frame-stacking with 4 frames
+        self.env = VecFrameStack(env, n_stack=4)
 
         # Wrap env as VecTransposeImage to allow SB to handle frame observations
         self.env = VecTransposeImage(self.env)

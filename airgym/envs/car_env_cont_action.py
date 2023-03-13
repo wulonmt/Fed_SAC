@@ -86,6 +86,9 @@ class AirSimCarEnvContAction(AirSimEnv):
         self.static_count = 0
         
         self.track = [(track0, bound0), (track1, bound1), (track2, bound2)]
+        self.X_ = 0
+        self.Y_ = 0
+        self.Z_ = 0
         
         DamnAnimals = [] #Forgive me for cursing the animals which always breaks my training
         print("Animals: ")
@@ -128,6 +131,15 @@ class AirSimCarEnvContAction(AirSimEnv):
         
         self.car.setCarControls(self.car_controls)
         time.sleep(0.8)
+        
+    def global_pose(self):
+        """
+        In airsim, position coordinates in NED. So we have to shift the position to global coordinate.
+        """
+        GP = self.state["pose"].position.to_numpy_array()
+        GP += [self.X_, self.Y_, self.Z_]
+        print("Global Position: ", GP)
+        return GP
 
     def transform_obs(self, response):
         #img1d = np.array(response.image_data_float, dtype=np.float)
@@ -170,7 +182,7 @@ class AirSimCarEnvContAction(AirSimEnv):
             np.array([x, y, 0])
             for x, y in self.track[self.track_num][0]
         ]
-        car_pt = self.state["pose"].position.to_numpy_array()
+        car_pt = self.global_pose()
 
         dist = 10000000
         for i in range(0, len(pts) - 1):
@@ -202,7 +214,7 @@ class AirSimCarEnvContAction(AirSimEnv):
             np.array([x, y, 0])
             for x, y in bound_track
         ]
-        car_pt = self.state["pose"].position.to_numpy_array()
+        car_pt = self.global_pose()
         bound_dist_sum = 0
         for i in range(0, len(bound) - 1):
             bound_dist_sum += np.linalg.norm(np.cross((car_pt - bound[i]), (car_pt - bound[i+1])) / np.linalg.norm(bound[i] - bound[i+1]))
@@ -284,3 +296,8 @@ class AirSimCarEnvContAction(AirSimEnv):
     
     def setkwargs(self, **kwargs):
         self.track_num = kwargs['track']
+        
+    def setInitialPos(self, X_, Y_, Z_):
+        self.X_ = X_
+        self.Y_ = Y_
+        self.Z_ = Z_

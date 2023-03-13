@@ -1,8 +1,10 @@
 from flwr.server.strategy import FedAdam, FedOpt, FedAvg
 from typing import Callable, Dict, List, Optional, Tuple, Union
 from flwr.server.client_manager import ClientManager
+import flwr as fl
 
 import numpy as np
+import os
 
 from flwr.common import (
     FitRes,
@@ -15,6 +17,8 @@ from flwr.common import (
     parameters_to_ndarrays,
 )
 from flwr.server.client_proxy import ClientProxy
+
+from utils.Ptime import Ptime
 
 class CustomFedAdam(FedAvg):
     def __init__(
@@ -42,6 +46,8 @@ class CustomFedAdam(FedAvg):
         beta_1: float = 0.9,
         beta_2: float = 0.99,
         tau: float = 1e-8,
+        total_rounds: int,
+        model_path:str = None,
     ) -> None:
         super().__init__(
             fraction_fit=fraction_fit,
@@ -63,6 +69,12 @@ class CustomFedAdam(FedAvg):
         self.beta_2 = beta_2
         self.tau = tau
         self.initial = True
+        self.m_t: Optional[NDArrays] = None
+        self.v_t: Optional[NDArrays] = None
+        self.total_rounds = total_rounds
+        self.ptime = Ptime()
+        self.ptime.set_time_now()
+        self.model_path = model_path
     
     def aggregate_fit(
         self,
@@ -79,18 +91,11 @@ class CustomFedAdam(FedAvg):
         if self.initial:
             self.current_weights = fedavg_weights_aggregate
             self.initial = False
-        print("\n_________fedavg_weights_aggregate__________")
-        print(fedavg_weights_aggregate[0][0])
-        print("\n_________self.current_weights__________")
-        print(self.current_weights[0][0])
-        
         
         # Adam
         delta_t: NDArrays = [
             x - y for x, y in zip(fedavg_weights_aggregate, self.current_weights)
         ]
-        print("\n_________delta_t__________")
-        print(delta_t[0][0])
 
         # m_t
         if not self.m_t:
@@ -99,8 +104,6 @@ class CustomFedAdam(FedAvg):
             (np.multiply(self.beta_1, x) + (1 - self.beta_1) * y) / (1 - self.beta_1) #add bias modified
             for x, y in zip(self.m_t, delta_t)
         ]
-        print("\n_________self.m_t__________")
-        print(self.m_t[0][0])
 
         # v_t
         if not self.v_t:
@@ -109,17 +112,21 @@ class CustomFedAdam(FedAvg):
             (self.beta_2 * x + (1 - self.beta_2) * np.multiply(y, y)) / (1 - self.beta_2) #add bias modified
             for x, y in zip(self.v_t, delta_t)
         ]
-        print("\n_________self.v_t__________")
-        print(self.v_t[0][0])
 
         new_weights = [
             x + self.eta * y / (np.sqrt(z) + self.tau)
             for x, y, z in zip(self.current_weights, self.m_t, self.v_t)
         ]
-        print("\n_________new_weights__________")
-        print(new_weights[0][0])
 
         self.current_weights = new_weights
+        
+        #Saving model at the end
+        if server_round == self.total_rounds:
+            aggregated_ndarrays: List[np.ndarray] = self.current_weights
+            print(f"Saving round {server_round} aggregated_ndarrays...")
+            if not os.path.isdir('result_model'):
+                os.mkdir('result_model')
+            np.savez(f"result_model/{self.ptime.get_time()}-weights_{self.model_path}.npz", *aggregated_ndarrays)
 
         return ndarrays_to_parameters(self.current_weights), metrics_aggregated
         
