@@ -89,7 +89,6 @@ class AirsimClient(fl.client.NumPyClient):
             buffer_size=200000,
             device="auto",
             tensorboard_log="./tb_logs/",
-            shuffle_doubleQ = suffle_Q
         )
         
         # Create an evaluation callback with the same env, called every 10000 iterations
@@ -127,6 +126,7 @@ class AirsimClient(fl.client.NumPyClient):
         print("Starting time: ", self.time.get_time())
         self.n_round = int(0)
         self.Fed_target = Fed_target
+        self.shuffle_Q = shuffle_Q
         
     def swap_Q(self):
         qf0_keys, qf1_keys = [], []
@@ -168,8 +168,9 @@ class AirsimClient(fl.client.NumPyClient):
         params_dict = zip(self.model.policy.state_dict().keys(), parameters)
         state_dict = OrderedDict({k: th.tensor(v) for k, v in params_dict})
         self.model.policy.load_state_dict(state_dict, strict=True)
-        if random.random() > 0.5:
-            self.swap_Q()
+        if self.shuffle_Q:
+            if random.random() > 0.5:
+                self.swap_Q()
         if self.Fed_target:
             self.set_Fed_target()
 
