@@ -12,6 +12,7 @@ from stable_baselines3.common.vec_env import VecFrameStack
 import utils.setup_path
 from utils.Ptime import Ptime
 from utils.EpisodeCheckpointCallback import EpisodeCheckpointCallback
+from utils.FedSAC import FedSAC
 
 import flwr as fl
 import numpy as np
@@ -22,6 +23,7 @@ from torch import nn
 import argparse
 import json
 from subprocess import Popen
+import random
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-t", "--track", help="which track will be used, 0~2", type=int, default=1)
@@ -53,7 +55,7 @@ print(Popen("./Environment.sh"))
 time.sleep(7) #wait for airsim opening"
 
 class AirsimClient(fl.client.NumPyClient):
-    def __init__(self):
+    def __init__(self, Fed_target = True, shuffle_Q = False ):
         # Create a DummyVecEnv for main airsim gym env
         self.env = gym.make(
                         "airgym:airsim-car-cont-action-sample-v0",
@@ -76,7 +78,7 @@ class AirsimClient(fl.client.NumPyClient):
         self.env = VecTransposeImage(self.env)
 
         # Initialize RL algorithm type and parameters
-        self.model = SAC( #action should be continue
+        self.model = FedSAC( #action should be continue
             "CnnPolicy",
             self.env,
             learning_rate=0.0003,
@@ -87,6 +89,7 @@ class AirsimClient(fl.client.NumPyClient):
             buffer_size=200000,
             device="auto",
             tensorboard_log="./tb_logs/",
+            shuffle_doubleQ = suffle_Q
         )
         
         # Create an evaluation callback with the same env, called every 10000 iterations
@@ -123,6 +126,39 @@ class AirsimClient(fl.client.NumPyClient):
         self.time.set_time_now()
         print("Starting time: ", self.time.get_time())
         self.n_round = int(0)
+        self.Fed_target = Fed_target
+        
+    def swap_Q(self):
+        qf0_keys, qf1_keys = [], []
+        for key in self.model.policy.state_dict().keys():
+            if "critic.qf0" in key:
+                qf0_keys.append(key)
+            elif "critic.qf1" in key:
+                qf1_keys.append(key)
+                
+        qf0 = [self.model.policy.state_dict()[key] for key in qf0_keys]
+        qf1 = [self.model.policy.state_dict()[key] for key in qf1_keys]
+        qf0, qf1 = qf1, qf0
+        qf0_pair = zip(qf0_keys, qf0)
+        qf1_pair = zip(qf1_keys, qf1)
+        qf0_dict = {key : value.clone().detach() for key, value in qf0_pair}
+        qf1_dict = {key : value.clone().detach() for key, value in qf1_pair}
+
+        self.model.policy.load_state_dict(qf1_dict, strict=False)
+        self.model.policy.load_state_dict(qf0_dict, strict=False)
+        self.model.doubleQ_swapped = not self.model.doubleQ_swapped
+        
+    def set_Fed_target(self):
+        target_keys, critic_keys = [], []
+        for key in self.model.policy.state_dict().keys():
+            if "target" in key:
+                target_keys.append(key)
+            elif "critic" in key:
+                critic_keys.append(key)
+        critic_value = [self.model.policy.state_dict()[key] for key in critic_keys]
+        target_pair = zip(target_keys, critic_value)
+        target_dict = {key : value.clone().detach() for key, value in target_pair}
+        self.model.policy.load_state_dict(target_dict, strict=False)
         
     def get_parameters(self, config):
         policy_state = [value.cpu().numpy() for key, value in self.model.policy.state_dict().items()]
@@ -132,6 +168,10 @@ class AirsimClient(fl.client.NumPyClient):
         params_dict = zip(self.model.policy.state_dict().keys(), parameters)
         state_dict = OrderedDict({k: th.tensor(v) for k, v in params_dict})
         self.model.policy.load_state_dict(state_dict, strict=True)
+        if random.random() > 0.5:
+            self.swap_Q()
+        if self.Fed_target:
+            self.set_Fed_target()
 
     def fit(self, parameters, config):
         self.n_round += 1

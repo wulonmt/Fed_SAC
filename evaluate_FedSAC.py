@@ -26,6 +26,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("-t", "--track", help="which track will be used, 0~2", type=int, default=1)
 parser.add_argument("-i", "--intersection", help="which intersection car is in", type=int, default=1)
 parser.add_argument("-l", "--log_name", help="modified log name", type=str, nargs='?')
+parser.add_argument("-m", "--model", help="model path", type=str)
 args = parser.parse_args()
 
 with open("settings.json") as f:
@@ -80,7 +81,7 @@ def npz_path_to_model(model, path) -> None:
     state_dict = OrderedDict({k: th.tensor(v) for k, v in params_dict})
     model.policy.load_state_dict(state_dict, strict=True)
     
-model_path = 'result_model/2023_Mar_11_Sat_16:30:15_-weights_eta0005.npz'
+model_path = args.model
 print("loding evaluation path: ", model_path)
 model_name = model_path.split('/')[-1].split('.')[0]
 print("loding evaluation model name: ", model_name)
