@@ -85,7 +85,7 @@ class AirsimClient(fl.client.NumPyClient):
             verbose=1,
             batch_size=64,
             train_freq=1,
-            learning_starts=50, #testing origin 1000
+            learning_starts=1, #testing origin 1000
             buffer_size=200000,
             device="auto",
             tensorboard_log="./tb_logs/",

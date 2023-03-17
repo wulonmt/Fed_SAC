@@ -96,10 +96,6 @@ class FedSAC(SAC):
 
         # Update learning rate according to lr schedule
         self._update_learning_rate(optimizers)
-        
-        if shuffle_doubleQ:
-            if random.random() >= 0.5:
-                self.swap_Q()
 
         ent_coef_losses, ent_coefs = [], []
         actor_losses, critic_losses = [], []
