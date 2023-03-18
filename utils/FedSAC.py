@@ -141,7 +141,7 @@ class FedSAC(SAC):
                 next_q_values, QQindex = th.min(next_q_values, dim=1, keepdim=True)
                 doubleQ = th.mean(QQindex.type(th.DoubleTensor)).item()
                 if self.doubleQ_swapped:
-                    doubleQ = 1 / doubleQ
+                    doubleQ = 1 - doubleQ
                 doubleQ_ratio.append(doubleQ)
                 # add entropy term
                 next_q_values = next_q_values - ent_coef * next_log_prob.reshape(-1, 1)

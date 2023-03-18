@@ -6,10 +6,10 @@
     "Vehicles": {
         "Car1": {
             "VehicleType": "PhysXCar",
-            "X": 0,
+            "X": -127,
             "Y": 0,
             "Z": 0,
-            "Yaw": 180
+            "Yaw": 270
         }
     },
     "CameraDefaults": {
