@@ -29,6 +29,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("-t", "--track", help="which track will be used, 0~2", type=int, default=1)
 parser.add_argument("-i", "--intersection", help="which intersection car is in", type=int, default=1)
 parser.add_argument("-l", "--log_name", help="modified log name", type=str, nargs='?')
+parser.add_argument("-s", "--timesteps", help="how many timesteps in one epoch", type=int, nargs='?', default=1)
 args = parser.parse_args()
 
 with open("settings.json") as f:
@@ -181,7 +182,7 @@ class AirsimClient(fl.client.NumPyClient):
             self.model.learning_rate = config["learning_rate"]
         print(f"Training learning rate: {self.model.learning_rate}")
         self.model.learn(
-            total_timesteps=1e3,
+            total_timesteps=args.timesteps,
             tb_log_name=self.time.get_time() + f"inter{args.intersection}" + f"{args.log_name}/SAC_airsim_car_round_{self.n_round}",
             reset_num_timesteps=False,
             callback = self.callback
