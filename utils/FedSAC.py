@@ -7,6 +7,7 @@ import numpy as np
 import torch as th
 from gym import spaces
 from torch.nn import functional as F
+from copy import deepcopy
 
 from stable_baselines3.common.buffers import ReplayBuffer
 from stable_baselines3.common.noise import ActionNoise
@@ -16,6 +17,15 @@ from stable_baselines3.common.type_aliases import GymEnv, MaybeCallback, Schedul
 from stable_baselines3.common.utils import polyak_update
 from stable_baselines3.sac.policies import CnnPolicy, MlpPolicy, MultiInputPolicy, SACPolicy
 from collections import OrderedDict
+
+
+from stable_baselines3.common.buffers import DictReplayBuffer, ReplayBuffer
+from stable_baselines3.common.callbacks import BaseCallback
+from stable_baselines3.common.noise import ActionNoise, VectorizedActionNoise
+from stable_baselines3.common.type_aliases import GymEnv, MaybeCallback, RolloutReturn, Schedule, TrainFreq, TrainFrequencyUnit
+from stable_baselines3.common.utils import safe_mean, should_collect_more_steps
+from stable_baselines3.common.vec_env import VecEnv
+from stable_baselines3.her.her_replay_buffer import HerReplayBuffer
 
 SelfSAC = TypeVar("SelfSAC", bound="SAC")
 
@@ -55,7 +65,14 @@ class FedSAC(SAC):
         seed: Optional[int] = None,
         device: Union[th.device, str] = "auto",
         _init_setup_model: bool = True,
+        alpha_meta: bool = False,
+        alpha_lr = 0.001,
     ):
+        self.alpha_meta = alpha_meta
+        self.alpha_lr = alpha_lr
+        self.doubleQ_swapped = False
+        self.first_replay_buffer = None
+        self.just_begin = True
         super().__init__(
             policy,
             env,
@@ -84,7 +101,26 @@ class FedSAC(SAC):
             optimize_memory_usage=optimize_memory_usage,
             _init_setup_model=_init_setup_model,
         )
-        self.doubleQ_swapped = False
+        
+    def _setup_model(self) -> None:
+        super()._setup_model()
+        if self.alpha_meta:
+            if self.first_replay_buffer is None:
+                # Make a local copy as we should not pickle
+                # the environment when using HerReplayBuffer
+                replay_buffer_kwargs = self.replay_buffer_kwargs.copy()
+                if issubclass(self.replay_buffer_class, HerReplayBuffer):
+                    assert self.env is not None, "You must pass an environment when using `HerReplayBuffer`"
+                    replay_buffer_kwargs["env"] = self.env
+                self.first_replay_buffer = self.replay_buffer_class(
+                    self.buffer_size,
+                    self.observation_space,
+                    self.action_space,
+                    device=self.device,
+                    n_envs=self.n_envs,
+                    optimize_memory_usage=self.optimize_memory_usage,
+                    **replay_buffer_kwargs,  # pytype:disable=wrong-keyword-args
+                )
         
     def train(self, gradient_steps: int, batch_size: int = 64) -> None:
         # Switch to train mode (this affects batch norm / dropout)
@@ -104,6 +140,7 @@ class FedSAC(SAC):
         for gradient_step in range(gradient_steps):
             # Sample replay buffer
             replay_data = self.replay_buffer.sample(batch_size, env=self._vec_normalize_env)
+            first_replay_data = self.first_replay_buffer.sample(1, env =self._vec_normalize_env) #Paper uses 32 and 8 correspond to origin batch and meta batch
 
             # We need to sample because `log_std` may have changed between two gradient steps
             if self.use_sde:
@@ -115,12 +152,28 @@ class FedSAC(SAC):
 
             ent_coef_loss = None
             if self.ent_coef_optimizer is not None:
-                # Important: detach the variable from the graph
-                # so we don't change it with other losses
-                # see https://github.com/rail-berkeley/softlearning/issues/60
-                ent_coef = th.exp(self.log_ent_coef.detach())
-                ent_coef_loss = -(self.log_ent_coef * (log_prob + self.target_entropy).detach()).mean()
-                ent_coef_losses.append(ent_coef_loss.item())
+                if self.alpha_meta:
+                    with th.no_grad():
+                        # Select meta action according to policy and deterministic
+                        meta_action = self.actor(first_replay_data.observations, deterministic = True)
+                        # Get meta q value as meta losss
+                        meta_q_values = th.cat(self.critic(first_replay_data.observations, meta_action), dim=1)
+                        print("meta_q_values ",meta_q_values)
+                    print("meta q values: ", meta_q_values)
+                    ent_coef = th.exp(self.log_ent_coef.detach())
+                    ent_coef_loss = None
+                    meta_loss = - meta_q_values.mean()
+                    ent_coef = th.add(ent_coef, meta_loss, alpha = self.alpha_lr)
+                    print("meta_loss ", meta_loss)
+                    self.log_ent_coef = th.log(ent_coef).detach()
+                    ent_coef_losses.append(meta_loss.item())
+                else:
+                    # Important: detach the variable from the graph
+                    # so we don't change it with other losses
+                    # see https://github.com/rail-berkeley/softlearning/issues/60
+                    ent_coef = th.exp(self.log_ent_coef.detach())
+                    ent_coef_loss = -(self.log_ent_coef * (log_prob + self.target_entropy).detach()).mean()
+                    ent_coef_losses.append(ent_coef_loss.item())
             else:
                 ent_coef = self.ent_coef_tensor
             
@@ -189,3 +242,129 @@ class FedSAC(SAC):
         if len(ent_coef_losses) > 0:
             self.logger.record("train/ent_coef_loss", np.mean(ent_coef_losses))
         self.logger.record("train/doubleQ_ratio", np.mean(doubleQ_ratio))
+
+        
+    def collect_rollouts(
+        self,
+        env: VecEnv,
+        callback: BaseCallback,
+        train_freq: TrainFreq,
+        replay_buffer: ReplayBuffer,
+        action_noise: Optional[ActionNoise] = None,
+        learning_starts: int = 0,
+        log_interval: Optional[int] = None,
+    ) -> RolloutReturn:
+        """
+        Collect experiences and store them into a ``ReplayBuffer``.
+        :param env: The training environment
+        :param callback: Callback that will be called at each step
+            (and at the beginning and end of the rollout)
+        :param train_freq: How much experience to collect
+            by doing rollouts of current policy.
+            Either ``TrainFreq(<n>, TrainFrequencyUnit.STEP)``
+            or ``TrainFreq(<n>, TrainFrequencyUnit.EPISODE)``
+            with ``<n>`` being an integer greater than 0.
+        :param action_noise: Action noise that will be used for exploration
+            Required for deterministic policy (e.g. TD3). This can also be used
+            in addition to the stochastic policy for SAC.
+        :param learning_starts: Number of steps before learning for the warm-up phase.
+        :param replay_buffer:
+        :param log_interval: Log data every ``log_interval`` episodes
+        :return:
+        """
+        # Switch to eval mode (this affects batch norm / dropout)
+        self.policy.set_training_mode(False)
+
+        num_collected_steps, num_collected_episodes = 0, 0
+
+        assert isinstance(env, VecEnv), "You must pass a VecEnv"
+        assert train_freq.frequency > 0, "Should at least collect one step or episode."
+
+        if env.num_envs > 1:
+            assert train_freq.unit == TrainFrequencyUnit.STEP, "You must use only one env when doing episodic training."
+
+        # Vectorize action noise if needed
+        if action_noise is not None and env.num_envs > 1 and not isinstance(action_noise, VectorizedActionNoise):
+            action_noise = VectorizedActionNoise(action_noise, env.num_envs)
+
+        if self.use_sde:
+            self.actor.reset_noise(env.num_envs)
+
+        callback.on_rollout_start()
+        continue_training = True
+        
+        while should_collect_more_steps(train_freq, num_collected_steps, num_collected_episodes):
+            if self.use_sde and self.sde_sample_freq > 0 and num_collected_steps % self.sde_sample_freq == 0:
+                # Sample a new noise matrix
+                self.actor.reset_noise(env.num_envs)
+
+            # Select action randomly or according to policy
+            actions, buffer_actions = self._sample_action(learning_starts, action_noise, env.num_envs)
+
+            # Rescale and perform action
+            new_obs, rewards, dones, infos = env.step(actions)
+            #Cause there's only one env, so len(dones) = 1
+
+            self.num_timesteps += env.num_envs
+            num_collected_steps += 1
+
+            # Give access to local variables
+            callback.update_locals(locals())
+            # Only stop training if return value is False, not when it is None.
+            if callback.on_step() is False:
+                return RolloutReturn(num_collected_steps * env.num_envs, num_collected_episodes, continue_training=False)
+
+            # Retrieve reward and episode length if using Monitor wrapper
+            self._update_info_buffer(infos, dones)
+
+            # Store data in replay buffer (normalized action and unnormalized observation)
+            self._store_transition(replay_buffer, buffer_actions, new_obs, rewards, dones, infos)
+            
+            if self.just_begin and self.alpha_meta:
+                new_obs_ = None
+                reward_ = None
+                # Store only the unnormalized version
+                if self._vec_normalize_env is not None:
+                    new_obs_ = self._vec_normalize_env.get_original_obs()
+                    reward_ = self._vec_normalize_env.get_original_reward()
+                else:
+                    # Avoid changing the original ones
+                    self._last_original_obs, new_obs_, reward_ = self._last_obs, new_obs, rewards
+
+                # Avoid modification by reference
+                next_obs = deepcopy(new_obs_)
+                self.first_replay_buffer.add(
+                    self._last_original_obs,
+                    next_obs,
+                    buffer_actions,
+                    reward_,
+                    dones,
+                    infos,
+                )
+                print("first replay buffer size: ", self.first_replay_buffer.size())
+                self.just_begin = False
+
+            self._update_current_progress_remaining(self.num_timesteps, self._total_timesteps)
+
+            # For DQN, check if the target network should be updated
+            # and update the exploration schedule
+            # For SAC/TD3, the update is dones as the same time as the gradient update
+            # see https://github.com/hill-a/stable-baselines/issues/900
+            self._on_step()
+
+            for idx, done in enumerate(dones):
+                if done:
+                    # Update stats
+                    num_collected_episodes += 1
+                    self._episode_num += 1
+
+                    if action_noise is not None:
+                        kwargs = dict(indices=[idx]) if env.num_envs > 1 else {}
+                        action_noise.reset(**kwargs)
+
+                    # Log training infos
+                    if log_interval is not None and self._episode_num % log_interval == 0:
+                        self._dump_logs()
+        callback.on_rollout_end()
+
+        return RolloutReturn(num_collected_steps * env.num_envs, num_collected_episodes, continue_training)

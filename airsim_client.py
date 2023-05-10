@@ -29,7 +29,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("-t", "--track", help="which track will be used, 0~2", type=int, default=1)
 parser.add_argument("-i", "--intersection", help="which intersection car is in", type=int, default=1)
 parser.add_argument("-l", "--log_name", help="modified log name", type=str, nargs='?')
-parser.add_argument("-s", "--timesteps", help="how many timesteps in one epoch", type=int, nargs='?', default=1)
+parser.add_argument("-s", "--timesteps", help="how many timesteps in one epoch", type=int, nargs='?', default=1e3)
 args = parser.parse_args()
 
 with open("settings.json") as f:
@@ -56,7 +56,7 @@ print(Popen("./Environment.sh"))
 time.sleep(7) #wait for airsim opening"
 
 class AirsimClient(fl.client.NumPyClient):
-    def __init__(self, Fed_target = True, shuffle_Q = True ):
+    def __init__(self, Fed_target = False, shuffle_Q = True, alpha_meta = True):
         # Create a DummyVecEnv for main airsim gym env
         self.env = gym.make(
                         "airgym:airsim-car-cont-action-sample-v0",
@@ -86,10 +86,11 @@ class AirsimClient(fl.client.NumPyClient):
             verbose=1,
             batch_size=64,
             train_freq=1,
-            learning_starts=500, #testing origin 1000
+            learning_starts=1000, #testing origin 1000
             buffer_size=200000,
             device="auto",
             tensorboard_log="./tb_logs/",
+            alpha_meta = alpha_meta
         )
         
         # Create an evaluation callback with the same env, called every 10000 iterations
@@ -119,6 +120,7 @@ class AirsimClient(fl.client.NumPyClient):
         # Stops training when the model reaches the maximum number of episodes
         callback_max_episodes = StopTrainingOnMaxEpisodes(max_episodes=1e2, verbose=1)
         #callback_list.append(callback_max_episodes)
+        #Using max episode may not be able to do fed learning
 
         self.callback = CallbackList(callback_list)
 

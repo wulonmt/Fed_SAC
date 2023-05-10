@@ -15,7 +15,7 @@ parser.add_argument("-m", "--model_name", help="modified model name", type=str, 
 args = parser.parse_args()
 
 def main():
-    total_rounds = 20
+    total_rounds = 40
     # Decorated strategy
     strategy = tensorboard("Server_log")(CustomFedAdam)(min_fit_clients=2,
                                                 min_evaluate_clients=2,

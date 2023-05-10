@@ -61,6 +61,7 @@ class CustomFedAvg(FedAvg):
         self.ptime = Ptime()
         self.ptime.set_time_now()
         self.model_path = model_path
+        self.total_rounds = total_rounds
         
     def aggregate_fit(self,
         server_round: int,

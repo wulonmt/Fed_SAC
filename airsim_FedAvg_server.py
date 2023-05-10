@@ -6,20 +6,21 @@ from flwr.common.typing import Parameters
 from flwr.common.parameter import ndarrays_to_parameters
 
 from utils.CustomFedAvg import CustomFedAvg
+import argparse
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-m", "--model_name", help="modified model name", type=str, nargs='?')
 args = parser.parse_args()
 
 def main():
-    total_rounds = 1
+    total_rounds = 20
     # Define strategy
     strategy = CustomFedAvg(
                             min_fit_clients=2,
                             min_evaluate_clients=2,
                             min_available_clients=2,
-                            total_rounds = total_rounds
-                            model_path = args.model_name
+                            total_rounds = total_rounds,
+                            model_path = args.model_name,
                             )
     # Start Flower server
     fl.server.start_server(

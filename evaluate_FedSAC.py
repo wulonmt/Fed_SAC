@@ -31,8 +31,8 @@ args = parser.parse_args()
 
 with open("settings.json") as f:
     settings = json.load(f)
-settings["ViewMode"] = "SpringArmChase"
-#settings["ViewMode"] = "NoDisplay"
+#settings["ViewMode"] = "SpringArmChase"
+settings["ViewMode"] = "NoDisplay"
 Car = settings["Vehicles"]["Car1"]
 if args.track == 1:
     if args.intersection == 1:
