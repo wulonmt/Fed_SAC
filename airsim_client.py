@@ -56,7 +56,7 @@ print(Popen("./Environment.sh"))
 time.sleep(7) #wait for airsim opening"
 
 class AirsimClient(fl.client.NumPyClient):
-    def __init__(self, Fed_target = False, shuffle_Q = True, alpha_meta = True):
+    def __init__(self, Fed_target = False, shuffle_Q = False, alpha_meta = False):
         # Create a DummyVecEnv for main airsim gym env
         self.env = gym.make(
                         "airgym:airsim-car-cont-action-sample-v0",
@@ -86,10 +86,11 @@ class AirsimClient(fl.client.NumPyClient):
             verbose=1,
             batch_size=64,
             train_freq=1,
-            learning_starts=1000, #testing origin 1000
+            learning_starts=10, #testing origin 1000
             buffer_size=200000,
             device="auto",
             tensorboard_log="./tb_logs/",
+            ent_coef = 1
             alpha_meta = alpha_meta
         )
         

@@ -66,7 +66,7 @@ class FedSAC(SAC):
         device: Union[th.device, str] = "auto",
         _init_setup_model: bool = True,
         alpha_meta: bool = False,
-        alpha_lr = 0.001,
+        alpha_lr = 0.0001,
     ):
         self.alpha_meta = alpha_meta
         self.alpha_lr = alpha_lr
@@ -101,6 +101,7 @@ class FedSAC(SAC):
             optimize_memory_usage=optimize_memory_usage,
             _init_setup_model=_init_setup_model,
         )
+        self.last_meta_value = th.tensor([0]).to(self.device)
         
     def _setup_model(self) -> None:
         super()._setup_model()
@@ -153,20 +154,22 @@ class FedSAC(SAC):
             ent_coef_loss = None
             if self.ent_coef_optimizer is not None:
                 if self.alpha_meta:
+                    ent_coef_loss = None
                     with th.no_grad():
                         # Select meta action according to policy and deterministic
                         meta_action = self.actor(first_replay_data.observations, deterministic = True)
                         # Get meta q value as meta losss
                         meta_q_values = th.cat(self.critic(first_replay_data.observations, meta_action), dim=1)
                         print("meta_q_values ",meta_q_values)
-                    print("meta q values: ", meta_q_values)
-                    ent_coef = th.exp(self.log_ent_coef.detach())
-                    ent_coef_loss = None
-                    meta_loss = - meta_q_values.mean()
-                    ent_coef = th.add(ent_coef, meta_loss, alpha = self.alpha_lr)
-                    print("meta_loss ", meta_loss)
-                    self.log_ent_coef = th.log(ent_coef).detach()
-                    ent_coef_losses.append(meta_loss.item())
+                        print("meta q values: ", meta_q_values)
+                        ent_coef = th.exp(self.log_ent_coef)
+                        meta_loss = - th.sub(meta_q_values.mean(), self.last_meta_value)
+                        self.last_meta_value = meta_q_values.mean()
+                        print("last meta value: ", self.last_meta_value)
+                        ent_coef = th.add(ent_coef, meta_loss, alpha = self.alpha_lr)
+                        print("meta_loss ", meta_loss)
+                        self.log_ent_coef = th.log(ent_coef).detach()
+                        ent_coef_losses.append(meta_loss.item())
                 else:
                     # Important: detach the variable from the graph
                     # so we don't change it with other losses
