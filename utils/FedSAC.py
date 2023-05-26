@@ -141,7 +141,8 @@ class FedSAC(SAC):
         for gradient_step in range(gradient_steps):
             # Sample replay buffer
             replay_data = self.replay_buffer.sample(batch_size, env=self._vec_normalize_env)
-            first_replay_data = self.first_replay_buffer.sample(1, env =self._vec_normalize_env) #Paper uses 32 and 8 correspond to origin batch and meta batch
+            if self.alpha_meta:
+                first_replay_data = self.first_replay_buffer.sample(1, env =self._vec_normalize_env) #Paper uses 32 and 8 correspond to origin batch and meta batch
 
             # We need to sample because `log_std` may have changed between two gradient steps
             if self.use_sde:
