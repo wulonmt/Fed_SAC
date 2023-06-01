@@ -86,11 +86,11 @@ class AirsimClient(fl.client.NumPyClient):
             verbose=1,
             batch_size=64,
             train_freq=1,
-            learning_starts=1000, #testing origin 1000
+            learning_starts=500, #testing origin 1000
             buffer_size=200000,
             device="auto",
             tensorboard_log="./tb_logs/",
-            ent_coef = 1,
+            ent_coef = 0.3,
             alpha_meta = alpha_meta
         )
         
@@ -190,7 +190,13 @@ class AirsimClient(fl.client.NumPyClient):
             reset_num_timesteps=False,
             callback = self.callback
             )
-        return self.get_parameters(config={}), self.model.num_timesteps, {}
+        if self.model.log_ent_coef is not None:
+            client_ent_coef = th.exp(self.model.log_ent_coef.detatch())
+        else:
+            client_ent_coef = self.model.ent_coef_tensor
+        client_ent_coef = client_ent_coef.item()
+            
+        return self.get_parameters(config={}), self.model.num_timesteps, {"ent_coef" : float(client_ent_coef)}
 
     def evaluate(self, parameters, config):
         self.set_parameters(parameters)
