@@ -84,7 +84,7 @@ class CustomFedAvg(FedAvg):
         # Create a list of weights, each multiplied by the related number of examples
         else:
             weighted_weights = [
-                [layer * num_examples for layer in weights] for weights, num_examples in results
+                [layer * num_examples for layer in weights] for weights, num_examples, _ in results
             ]
 
             # Compute average weights of each layer

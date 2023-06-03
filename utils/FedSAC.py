@@ -183,7 +183,10 @@ class FedSAC(SAC):
                 ent_coef = self.ent_coef_tensor
             
             ent_coefs.append(ent_coef.item())
-            log_pi.append(log_prob.detach().mean().cpu())
+            #add log_prob in tb
+            cpu_log_prob = np.squeeze(log_prob.clone().detach().cpu().numpy()) #Prevent from action error
+            log_pi.append(cpu_log_prob)
+            del(cpu_log_prob)
 
             # Optimize entropy coefficient, also called
             # entropy temperature or alpha in the paper
