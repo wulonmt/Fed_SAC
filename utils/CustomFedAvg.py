@@ -47,6 +47,7 @@ class CustomFedAvg(FedAvg):
         evaluate_metrics_aggregation_fn: Optional[MetricsAggregationFn] = None,
         total_rounds: int,
         model_path:str = None,
+        alpha_fed = False,
     ) -> None:
         super().__init__(
             fraction_fit=fraction_fit,
@@ -66,29 +67,33 @@ class CustomFedAvg(FedAvg):
         self.ptime.set_time_now()
         self.model_path = model_path
         self.total_rounds = total_rounds
+        self.alpha_fed = alpha_fed
         
     def alpha_aggregate(self, results: List[Tuple[NDArrays, int, float]]) -> NDArrays:
         """Compute weighted average."""
         # Calculate the total number of examples used during training
         num_examples_total = sum([num_examples for _, num_examples, _ in results])
         ent_coefs_total = sum([coefs for _, _, coefs  in results])
-        print("ent coefs: ", [coefs for _, _, coefs in results])
 
-        # Create a list of weights, each multiplied by the related number of examples
-        """
-        weighted_weights = [
-            [layer * num_examples for layer in weights] for weights, num_examples in results
-        ]
-
-        # Compute average weights of each layer
-        weights_prime: NDArrays = [
-            reduce(np.add, layer_updates) / num_examples_total
-            for layer_updates in zip(*weighted_weights)
-        ]
-        """
-        weighted_weights = [
+        #Weighted by entropy coefficient value
+        if self.alpha_fed:
+            print("ent coefs: ", [coefs for _, _, coefs in results])
+            weighted_weights = [
             [layer * coefs for layer in weights] for weights, _, coefs in results
-        ]
+            ]
+        # Create a list of weights, each multiplied by the related number of examples
+        else:
+            weighted_weights = [
+                [layer * num_examples for layer in weights] for weights, num_examples in results
+            ]
+
+            # Compute average weights of each layer
+            weights_prime: NDArrays = [
+                reduce(np.add, layer_updates) / num_examples_total
+                for layer_updates in zip(*weighted_weights)
+            ]
+        
+        
 
         # Compute average weights of each layer
         weights_prime: NDArrays = [

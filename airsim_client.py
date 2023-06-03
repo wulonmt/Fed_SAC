@@ -90,7 +90,7 @@ class AirsimClient(fl.client.NumPyClient):
             buffer_size=200000,
             device="auto",
             tensorboard_log="./tb_logs/",
-            ent_coef = 0.3,
+            ent_coef = "auto_1",
             alpha_meta = alpha_meta
         )
         
@@ -191,7 +191,7 @@ class AirsimClient(fl.client.NumPyClient):
             callback = self.callback
             )
         if self.model.log_ent_coef is not None:
-            client_ent_coef = th.exp(self.model.log_ent_coef.detatch())
+            client_ent_coef = th.exp(self.model.log_ent_coef.detach())
         else:
             client_ent_coef = self.model.ent_coef_tensor
         client_ent_coef = client_ent_coef.item()
