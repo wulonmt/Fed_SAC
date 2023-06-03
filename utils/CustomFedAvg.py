@@ -81,26 +81,24 @@ class CustomFedAvg(FedAvg):
             weighted_weights = [
             [layer * coefs for layer in weights] for weights, _, coefs in results
             ]
+                    # Compute average weights of each layer
+            weights_prime: NDArrays = [
+                reduce(np.add, layer_updates) / ent_coefs_total
+                for layer_updates in zip(*weighted_weights)
+            ]
+            return weights_prime
+            
         # Create a list of weights, each multiplied by the related number of examples
         else:
             weighted_weights = [
                 [layer * num_examples for layer in weights] for weights, num_examples, _ in results
             ]
-
             # Compute average weights of each layer
             weights_prime: NDArrays = [
                 reduce(np.add, layer_updates) / num_examples_total
                 for layer_updates in zip(*weighted_weights)
             ]
-        
-        
-
-        # Compute average weights of each layer
-        weights_prime: NDArrays = [
-            reduce(np.add, layer_updates) / ent_coefs_total
-            for layer_updates in zip(*weighted_weights)
-        ]
-        return weights_prime
+            return weights_prime
         
     def aggregate_fit(self,
         server_round: int,
