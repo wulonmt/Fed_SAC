@@ -137,6 +137,7 @@ class FedSAC(SAC):
         ent_coef_losses, ent_coefs = [], []
         actor_losses, critic_losses = [], []
         doubleQ_ratio = []
+        log_pi = []
 
         for gradient_step in range(gradient_steps):
             # Sample replay buffer
@@ -182,6 +183,7 @@ class FedSAC(SAC):
                 ent_coef = self.ent_coef_tensor
             
             ent_coefs.append(ent_coef.item())
+            log_pi.append(log_prob.detach().mean().cpu())
 
             # Optimize entropy coefficient, also called
             # entropy temperature or alpha in the paper
@@ -246,6 +248,7 @@ class FedSAC(SAC):
         if len(ent_coef_losses) > 0:
             self.logger.record("train/ent_coef_loss", np.mean(ent_coef_losses))
         self.logger.record("train/doubleQ_ratio", np.mean(doubleQ_ratio))
+        self.logger.record("train/log_pi", np.mean(log_pi))
 
         
     def collect_rollouts(
