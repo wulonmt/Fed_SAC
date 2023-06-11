@@ -56,7 +56,7 @@ print(Popen("./Environment.sh"))
 time.sleep(7) #wait for airsim opening"
 
 class AirsimClient(fl.client.NumPyClient):
-    def __init__(self, Fed_target = False, shuffle_Q = False, alpha_meta = False):
+    def __init__(self, Fed_target = True, shuffle_Q = True, alpha_meta = False):
         # Create a DummyVecEnv for main airsim gym env
         self.env = gym.make(
                         "airgym:airsim-car-cont-action-sample-v0",

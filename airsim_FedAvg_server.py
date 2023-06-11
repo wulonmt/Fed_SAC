@@ -21,7 +21,7 @@ def main():
                             min_available_clients=2,
                             total_rounds = total_rounds,
                             model_path = args.model_name,
-                            alpha_fed = False,
+                            alpha_fed = True,
                             )
     # Start Flower server
     fl.server.start_server(

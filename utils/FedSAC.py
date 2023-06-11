@@ -206,8 +206,8 @@ class FedSAC(SAC):
                     doubleQ = 1 - doubleQ
                 doubleQ_ratio.append(doubleQ)
                 # add entropy term
-                #next_q_values = next_q_values - ent_coef * next_log_prob.reshape(-1, 1)
-                next_q_values = next_q_values - 0.1 * next_log_prob.reshape(-1, 1)
+                next_q_values = next_q_values - ent_coef * next_log_prob.reshape(-1, 1)
+                #next_q_values = next_q_values - 0.1 * next_log_prob.reshape(-1, 1)
                 # td error + entropy term
                 target_q_values = replay_data.rewards + (1 - replay_data.dones) * self.gamma * next_q_values
 
